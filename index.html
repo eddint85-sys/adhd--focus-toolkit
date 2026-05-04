@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusKit — ADHD-Friendly Tools</title>
+  <meta name="description" content="Curated ADHD-friendly products for focus, time management, sensory regulation, and life systems." />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons (UMD build — exposes window.lucide) -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+  <!-- React + ReactDOM -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+
+  <!-- Babel Standalone (compiles JSX in browser) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-family: 'DM Sans', sans-serif; background: #FAF7F2; }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #FAF7F2; }
+    ::-webkit-scrollbar-thumb { background: #B8D4BA; border-radius: 10px; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50%       { transform: translateY(-9px); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(32px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.55; }
+      50%       { opacity: 1; }
+    }
+    @keyframes shimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+
+    .hero-pill  { animation: float   4s ease-in-out infinite; }
+    .hero-h1    { animation: fadeUp  0.7s ease 0.1s  both; }
+    .hero-sub   { animation: fadeUp  0.7s ease 0.25s both; }
+    .hero-cta   { animation: fadeUp  0.7s ease 0.4s  both; }
+    .hero-pills { animation: fadeUp  0.7s ease 0.55s both; }
+    .scroll-hint{ animation: pulse   2s   ease infinite; }
+
+    .card-enter {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.55s ease, transform 0.55s ease;
+    }
+    .card-visible {
+      opacity: 1 !important;
+      transform: translateY(0) !important;
+    }
+
+    .btn-primary {
+      background: #7A9E7E; color: #fff;
+      padding: 14px 28px; border-radius: 16px; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 15px;
+      box-shadow: 0 4px 20px rgba(122,158,126,0.35);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn-primary:hover  { transform: translateY(-2px); opacity: 0.9; }
+
+    .btn-ghost {
+      background: transparent; color: #4A5568;
+      padding: 14px 28px; border-radius: 16px;
+      border: 1.5px solid #B8D4BA; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 15px;
+      transition: background 0.2s ease;
+    }
+    .btn-ghost:hover { background: #EDF4EE; }
+
+    .buy-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      color: #fff; padding: 11px 16px; border-radius: 12px;
+      font-family: 'DM Sans', sans-serif; font-weight: 700; font-size: 14px;
+      text-decoration: none; transition: opacity 0.2s, transform 0.2s;
+    }
+    .buy-btn:hover { opacity: 0.88; transform: scale(1.02); }
+
+    .nav-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 20px; border: none; cursor: pointer;
+      font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 13px;
+      transition: background 0.2s, color 0.2s;
+      background: transparent; color: #718096;
+    }
+    .nav-btn.active { color: #fff; }
+
+    .product-card {
+      background: #fff; border-radius: 20px; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      border: 1px solid rgba(0,0,0,0.05);
+      display: flex; flex-direction: column;
+    }
+
+    .trust-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: #fff; border: 1px solid rgba(0,0,0,0.07);
+      border-radius: 20px; padding: 7px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      font-size: 12.5px; font-weight: 600; color: #718096;
+    }
+
+    /* Responsive nav hide labels on small screens */
+    @media (max-width: 600px) {
+      .nav-label { display: none; }
+      .nav-btn   { padding: 7px 10px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    /* ── Pull Lucide icons out of the UMD global ── */
+    const createIcon = (name) => ({ size = 16, color = 'currentColor', ...rest }) => {
+      const ref = useRef(null);
+      useEffect(() => {
+        if (ref.current && window.lucide) {
+          ref.current.innerHTML = '';
+          const svg = window.lucide.icons[name];
+          if (svg) {
+            const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            el.setAttribute('width',  size);
+            el.setAttribute('height', size);
+            el.setAttribute('viewBox', '0 0 24 24');
+            el.setAttribute('fill',   'none');
+            el.setAttribute('stroke', color);
+            el.setAttribute('stroke-width', '2');
+            el.setAttribute('stroke-linecap',  'round');
+            el.setAttribute('stroke-linejoin', 'round');
+            el.innerHTML = svg[1].map(([tag, attrs]) => {
+              const el2 = document.createElementNS('http://www.w3.org/2000/svg', tag);
+              Object.entries(attrs).forEach(([k,v]) => el2.setAttribute(k, v));
+              return el2.outerHTML;
+            }).join('');
+            ref.current.appendChild(el);
+          }
+        }
+      }, [size, color]);
+      return <span ref={ref} style={{ display:'inline-flex', alignItems:'center' }} {...rest} />;
+    };
+
+    /* Icon components */
+    const BrainIcon      = createIcon('brain');
+    const ClockIcon      = createIcon('clock');
+    const WavesIcon      = createIcon('waves');
+    const LayoutGridIcon = createIcon('layout-grid');
+    const ExternalLinkIcon = createIcon('external-link');
+    const ChevronDownIcon  = createIcon('chevron-down');
+    const SparklesIcon   = createIcon('sparkles');
+    const ShieldCheckIcon= createIcon('shield-check');
+    const ZapIcon        = createIcon('zap');
+    const StarIcon       = createIcon('star');
+
+    /* ── Data ── */
+    const SECTIONS = [
+      {
+        id: 'focus', label: 'Focus & Stimulation', tagline: 'Channel your energy',
+        description: 'Sensory tools designed to calm the body so the mind can work. Give your hands something to do.',
+        Icon: ZapIcon, color: '#7A9E7E', pale: '#EDF4EE', light: '#B8D4BA', accent: '#4A7A4E',
+        products: [
+          { name:'Premium Fidget Controller Pad',   benefit:'12 tactile features in one — for restless hands that need to move to think.',      link:'https://amzn.to/4waI9d1', img:'https://m.media-amazon.com/images/I/71fZidJHjPL._AC_SL1500_.jpg', badge:'Best Seller' },
+          { name:'Magnetic Stones & Fidget Spheres', benefit:'Satisfying resistance and click — discreet enough for meetings.',                   link:'https://amzn.to/4wbBgrT', img:'https://m.media-amazon.com/images/I/71PUwM9s-uL._AC_SL1500_.jpg', badge:null },
+          { name:'Aluminum Infinity Cube',           benefit:'Elegant desk fidget — keeps your hands busy without distraction.',                  link:'https://amzn.to/3OLxbdf', img:'https://m.media-amazon.com/images/I/71c8Rt1bGEL._AC_SL1500_.jpg', badge:'Top Pick' },
+          { name:'Ergonomic Stress Relief Balls',    benefit:'Squeeze out tension. Built for high-anxiety moments and focus sessions.',            link:'https://amzn.to/49roPOK', img:'https://m.media-amazon.com/images/I/81cCrDz1bpL._AC_SL1500_.jpg', badge:null },
+        ],
+      },
+      {
+        id: 'time', label: 'Time Management', tagline: 'Visualise your time',
+        description: 'ADHD brains struggle with invisible time. Make it visible, tangible, and impossible to ignore.',
+        Icon: ClockIcon, color: '#7A9BB5', pale: '#EBF3F9', light: '#C5D9E8', accent: '#4A7A9B',
+        products: [
+          { name:'Visual Countdown Timer (60-Min)',  benefit:"Watch time shrink in real colour — no more 'just 5 more minutes.'",               link:'https://amzn.to/4dae6cV', img:'https://m.media-amazon.com/images/I/61XQzTl8kuL._AC_SL1500_.jpg', badge:"Editor's Choice" },
+          { name:'Productivity Pomodoro Flip Timer', benefit:'Flip to start. The physical act makes focus sessions feel real.',                   link:'https://amzn.to/4d34m3N', img:'https://m.media-amazon.com/images/I/61ROjRaowcL._AC_SL1500_.jpg', badge:null },
+          { name:'Aesthetic Sand Hourglass Set',     benefit:'Calming ritual — watch the sand flow and anchor yourself in the moment.',           link:'https://amzn.to/3QG5wen', img:'https://m.media-amazon.com/images/I/71bBlpWcOWL._AC_SL1500_.jpg', badge:null },
+        ],
+      },
+      {
+        id: 'calm', label: 'Calming & Sensory', tagline: 'Silence the noise',
+        description: 'Regulate your nervous system so you can actually sit down, breathe, and do the work.',
+        Icon: WavesIcon, color: '#C4956A', pale: '#FDF3EA', light: '#E8CDB0', accent: '#A0714A',
+        products: [
+          { name:'Therapeutic Weighted Blanket',      benefit:'Deep pressure therapy that signals safety to an overstimulated nervous system.',  link:'https://amzn.to/49qwBsc', img:'https://m.media-amazon.com/images/I/91AVoxktzyL._AC_SL1500_.jpg', badge:'Most Loved' },
+          { name:'Portable Weighted Lap Pad',         benefit:'Desk-friendly grounding. Use it anywhere to stay anchored and calm.',             link:'https://amzn.to/42b21z5', img:'https://m.media-amazon.com/images/I/71odAKnra9L._AC_SL1500_.jpg', badge:null },
+          { name:'Hybrid Noise Cancelling Headphones',benefit:'Block the world out. Create a bubble where focus is finally possible.',            link:'https://amzn.to/4tQTsWf', img:'https://m.media-amazon.com/images/I/71F2ccIPPLL._AC_SL1500_.jpg', badge:'Top Rated' },
+        ],
+      },
+      {
+        id: 'systems', label: 'Life Systems', tagline: 'Build your scaffolding',
+        description: "External structure that replaces the internal executive function we don't always have. Not a crutch — a superpower.",
+        Icon: LayoutGridIcon, color: '#9B7AC4', pale: '#F5F0FD', light: '#D6C8F0', accent: '#7A5AA0',
+        products: [
+          { name:'Comprehensive ADHD Daily Planner',   benefit:'Built specifically for ADHD brains — breaks days into doable chunks.',          link:'https://amzn.to/4uujhv7', img:'https://m.media-amazon.com/images/I/81NUssF2vfL._AC_SL1500_.jpg', badge:'Best Seller' },
+          { name:'Desktop Visual Schedule & Planner',  benefit:'Always visible, always there — no more out-of-sight, out-of-mind tasks.',       link:'https://amzn.to/4eYD3dB', img:'https://m.media-amazon.com/images/I/71zA5adol4L._AC_SL1500_.jpg', badge:null },
+          { name:'Clear Stackable Organization Bins',  benefit:"See everything at once. Opaque storage is an ADHD nightmare — this isn't.",     link:'https://amzn.to/4d6p6aY', img:'https://m.media-amazon.com/images/I/81LL0ltgOWL._AC_SL1500_.jpg', badge:null },
+          { name:'Minimalist Habit Tracker Journal',   benefit:'Small wins, daily streaks — builds momentum without overwhelm.',                link:'https://amzn.to/4tWfpDi', img:'https://m.media-amazon.com/images/I/71sVU2WDpBL._AC_SL1500_.jpg', badge:'New' },
+        ],
+      },
+    ];
+
+    /* ── Intersection Observer hook ── */
+    function useInView(threshold = 0.15) {
+      const ref = useRef(null);
+      const [inView, setInView] = useState(false);
+      useEffect(() => {
+        const obs = new IntersectionObserver(
+          ([entry]) => { if (entry.isIntersecting) setInView(true); },
+          { threshold }
+        );
+        if (ref.current) obs.observe(ref.current);
+        return () => obs.disconnect();
+      }, []);
+      return [ref, inView];
+    }
+
+    /* ── Star row ── */
+    function Stars({ color }) {
+      return (
+        <div style={{ display:'flex', alignItems:'center', gap:3 }}>
+          {[1,2,3,4,5].map(i => (
+            <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={color} stroke="none">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          ))}
+          <span style={{ fontSize:12, color:'#718096', marginLeft:4, fontFamily:"'DM Sans',sans-serif" }}>ADHD-verified</span>
+        </div>
+      );
+    }
+
+    /* ── Product Card ── */
+    function ProductCard({ product, accent, delay }) {
+      const [ref, inView] = useInView();
+      return (
+        <div
+          ref={ref}
+          className="product-card card-enter"
+          style={{
+            opacity:   inView ? 1 : 0,
+            transform: inView ? 'translateY(0)' : 'translateY(28px)',
+            transition: `opacity 0.55s ease ${delay}s, transform 0.55s ease ${delay}s`,
+          }}
+        >
+          {/* Image area */}
+          <div style={{ position:'relative', background:'#F8F8F6', height:200, overflow:'hidden', flexShrink:0 }}>
+            <img
+              src={product.img} alt={product.name} loading="lazy"
+              style={{ width:'100%', height:'100%', objectFit:'contain', padding:16 }}
+            />
+            {product.badge && (
+              <span style={{
+                position:'absolute', top:12, left:12,
+                background: accent, color:'#fff',
+                fontSize:11, fontWeight:700, letterSpacing:'0.06em',
+                padding:'4px 10px', borderRadius:20,
+                fontFamily:"'DM Sans',sans-serif",
+              }}>
+                {product.badge}
+              </span>
+            )}
+          </div>
+
+          {/* Content */}
+          <div style={{ padding:'20px 20px 24px', flex:1, display:'flex', flexDirection:'column', gap:10 }}>
+            <h4 style={{
+              margin:0, fontSize:15, fontWeight:700, color:'#4A5568',
+              fontFamily:"'Lora',Georgia,serif", lineHeight:1.4,
+            }}>{product.name}</h4>
+
+            <p style={{
+              margin:0, fontSize:13.5, color:'#718096',
+              fontFamily:"'DM Sans',sans-serif", lineHeight:1.6, flex:1,
+            }}>{product.benefit}</p>
+
+            <Stars color={accent} />
+
+            <a
+              href={product.link}
+              target="_blank" rel="noopener noreferrer"
+              className="buy-btn"
+              style={{ background: accent, marginTop:6 }}
+            >
+              Quick Buy
+              <ExternalLinkIcon size={14} color="#fff" />
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    /* ── Section Block ── */
+    function SectionBlock({ section }) {
+      const [ref, inView] = useInView(0.1);
+      const { Icon } = section;
+      return (
+        <section id={section.id} style={{ padding:'72px 0 48px' }}>
+          <div
+            ref={ref}
+            style={{
+              maxWidth:1120, margin:'0 auto', padding:'0 24px',
+              opacity:   inView ? 1 : 0,
+              transform: inView ? 'translateY(0)' : 'translateY(24px)',
+              transition:'opacity 0.5s ease, transform 0.5s ease',
+            }}
+          >
+            {/* Section header card */}
+            <div style={{
+              background: section.pale,
+              border: `1.5px solid ${section.light}`,
+              borderRadius:24, padding:'32px 36px', marginBottom:40,
+            }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
+                <div style={{
+                  width:44, height:44, borderRadius:14,
+                  background: section.color,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <Icon size={22} color="#fff" />
+                </div>
+                <div>
+                  <p style={{
+                    margin:0, fontSize:12, fontWeight:700, color: section.accent,
+                    letterSpacing:'0.1em', fontFamily:"'DM Sans',sans-serif", textTransform:'uppercase',
+                  }}>{section.label}</p>
+                  <h2 style={{
+                    margin:0, fontSize:26, fontWeight:800, color:'#4A5568',
+                    fontFamily:"'Lora',Georgia,serif",
+                  }}>{section.tagline}</h2>
+                </div>
+              </div>
+              <p style={{
+                margin:0, fontSize:15, color:'#718096',
+                fontFamily:"'DM Sans',sans-serif", lineHeight:1.7, maxWidth:580,
+              }}>{section.description}</p>
+            </div>
+
+            {/* Product grid */}
+            <div style={{
+              display:'grid',
+              gridTemplateColumns:'repeat(auto-fill, minmax(230px, 1fr))',
+              gap:20,
+            }}>
+              {section.products.map((p, i) => (
+                <ProductCard key={p.name} product={p} accent={section.accent} delay={i * 0.08} />
+              ))}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    /* ── Main App ── */
+    function App() {
+      const [scrolled,       setScrolled]       = useState(false);
+      const [activeSection,  setActiveSection]  = useState('focus');
+
+      useEffect(() => {
+        const onScroll = () => {
+          setScrolled(window.scrollY > 60);
+          const hit = SECTIONS.map(s => {
+            const el = document.getElementById(s.id);
+            return el ? { id: s.id, top: el.getBoundingClientRect().top } : null;
+          }).filter(Boolean).filter(o => o.top < 160).pop();
+          if (hit) setActiveSection(hit.id);
+        };
+        window.addEventListener('scroll', onScroll, { passive:true });
+        return () => window.removeEventListener('scroll', onScroll);
+      }, []);
+
+      const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior:'smooth', block:'start' });
+
+      return (
+        <div style={{ background:'#FAF7F2', minHeight:'100vh' }}>
+
+          {/* ── STICKY HEADER ── */}
+          <header style={{
+            position:'fixed', top:0, left:0, right:0, zIndex:100,
+            background: scrolled ? 'rgba(250,247,242,0.95)' : 'transparent',
+            backdropFilter: scrolled ? 'blur(14px)' : 'none',
+            boxShadow: scrolled ? '0 1px 20px rgba(0,0,0,0.08)' : 'none',
+            transition:'all 0.3s ease',
+            padding:'0 24px',
+          }}>
+            <div style={{
+              maxWidth:1120, margin:'0 auto',
+              display:'flex', alignItems:'center', justifyContent:'space-between',
+              height:64,
+            }}>
+              {/* Logo */}
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <div style={{
+                  width:34, height:34, background:'#7A9E7E',
+                  borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <BrainIcon size={18} color="#fff" />
+                </div>
+                <span style={{ fontFamily:"'Lora',serif", fontWeight:800, fontSize:17, color:'#4A5568' }}>
+                  FocusKit
+                </span>
+              </div>
+
+              {/* Nav */}
+              <nav style={{ display:'flex', gap:4, alignItems:'center' }}>
+                {SECTIONS.map(s => {
+                  const active = activeSection === s.id;
+                  const { Icon } = s;
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => scrollTo(s.id)}
+                      className={`nav-btn${active ? ' active' : ''}`}
+                      style={{ background: active ? s.color : 'transparent', color: active ? '#fff' : '#718096' }}
+                    >
+                      <Icon size={14} color={active ? '#fff' : '#718096'} />
+                      <span className="nav-label">{s.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </header>
+
+          {/* ── HERO ── */}
+          <section style={{
+            minHeight:'100vh',
+            display:'flex', flexDirection:'column',
+            alignItems:'center', justifyContent:'center',
+            padding:'100px 24px 80px', textAlign:'center',
+            background:`
+              radial-gradient(ellipse at 20% 50%, #EDF4EE 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, #EBF3F9 0%, transparent 50%),
+              radial-gradient(ellipse at 60% 80%, #FDF3EA 0%, transparent 50%),
+              #FAF7F2`,
+            position:'relative', overflow:'hidden',
+          }}>
+            {/* Decorative orbs */}
+            {[
+              { top:'15%', left:'8%',   w:180, h:180, color:'rgba(184,212,186,0.4)' },
+              { bottom:'20%', right:'10%', w:240, h:240, color:'rgba(197,217,232,0.35)' },
+              { top:'60%', left:'15%',  w:120, h:120, color:'rgba(232,205,176,0.4)' },
+            ].map((orb, i) => (
+              <div key={i} style={{
+                position:'absolute', ...orb,
+                width:orb.w, height:orb.h,
+                borderRadius:'50%',
+                background:`radial-gradient(circle, ${orb.color} 0%, transparent 70%)`,
+                pointerEvents:'none',
+              }} />
+            ))}
+
+            <div style={{ position:'relative', maxWidth:700 }}>
+              {/* Eyebrow pill */}
+              <div className="hero-pill" style={{
+                display:'inline-flex', alignItems:'center', gap:8,
+                background:'#EDF4EE', border:'1.5px solid #B8D4BA',
+                borderRadius:30, padding:'8px 18px', marginBottom:28,
+              }}>
+                <SparklesIcon size={15} color="#7A9E7E" />
+                <span style={{ fontSize:13, fontWeight:700, color:'#5C7D60', letterSpacing:'0.05em' }}>
+                  Curated for ADHD brains
+                </span>
+              </div>
+
+              {/* H1 */}
+              <h1 className="hero-h1" style={{
+                fontFamily:"'Lora',Georgia,serif",
+                fontSize:'clamp(38px, 6vw, 62px)',
+                fontWeight:800, color:'#4A5568',
+                margin:'0 0 22px', lineHeight:1.2,
+              }}>
+                Tools that work<br />
+                <span style={{ color:'#7A9E7E' }}>with your brain,</span><br />
+                not against it
+              </h1>
+
+              {/* Subtitle */}
+              <p className="hero-sub" style={{
+                fontSize:'clamp(16px, 2vw, 18px)', color:'#718096',
+                lineHeight:1.75, margin:'0 auto 36px', maxWidth:520,
+                fontFamily:"'DM Sans',sans-serif",
+              }}>
+                Every product here was chosen because it addresses a real ADHD challenge —
+                not just sold to you. Calm the chaos, visualise your time, and build systems that stick.
+              </p>
+
+              {/* CTA buttons */}
+              <div className="hero-cta" style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap', marginBottom:48 }}>
+                <button className="btn-primary" onClick={() => scrollTo('focus')}>
+                  Browse the toolkit →
+                </button>
+                <button className="btn-ghost" onClick={() => scrollTo('calm')}>
+                  Start with calm
+                </button>
+              </div>
+
+              {/* Trust pills */}
+              <div className="hero-pills" style={{ display:'flex', gap:12, justifyContent:'center', flexWrap:'wrap' }}>
+                {[
+                  { Icon: ShieldCheckIcon, text:'ADHD-specialist reviewed' },
+                  { Icon: StarIcon,        text:'Amazon verified products' },
+                  { Icon: ZapIcon,         text:'Sensory-safe picks only'  },
+                ].map(({ Icon, text }) => (
+                  <div key={text} className="trust-pill">
+                    <Icon size={14} color="#7A9E7E" />
+                    {text}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Scroll hint */}
+            <div className="scroll-hint" style={{
+              position:'absolute', bottom:32, left:'50%', transform:'translateX(-50%)',
+              display:'flex', flexDirection:'column', alignItems:'center', gap:6,
+            }}>
+              <span style={{ fontSize:12, color:'#718096', fontWeight:500, fontFamily:"'DM Sans',sans-serif" }}>
+                Explore below
+              </span>
+              <ChevronDownIcon size={18} color="#718096" />
+            </div>
+          </section>
+
+          {/* ── WHY THESE TOOLS ── */}
+          <section style={{ padding:'0 24px 64px' }}>
+            <div style={{ maxWidth:1120, margin:'0 auto' }}>
+              <div style={{
+                display:'grid',
+                gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))',
+                gap:16,
+              }}>
+                {[
+                  { Icon: BrainIcon,    color:'#7A9E7E', title:'Built for ADHD',        body:'Not repurposed wellness products — tools tested and loved by people with ADHD.' },
+                  { Icon: WavesIcon,    color:'#7A9BB5', title:'Sensory-considered',     body:'Every texture, sound, and weight was evaluated to soothe, not overwhelm.' },
+                  { Icon: ClockIcon,    color:'#C4956A', title:'Evidence-informed',      body:'Rooted in occupational therapy, neuroscience, and real lived experience.' },
+                  { Icon: SparklesIcon, color:'#9B7AC4', title:'No fluff',               body:'Minimal, functional picks that actually help — not just pretty things.' },
+                ].map(({ Icon, color, title, body }) => (
+                  <div key={title} style={{
+                    background:'#fff', borderRadius:18, padding:'24px 22px',
+                    border:'1px solid rgba(0,0,0,0.05)',
+                    boxShadow:'0 2px 10px rgba(0,0,0,0.05)',
+                  }}>
+                    <div style={{
+                      width:40, height:40, borderRadius:12, background:color,
+                      display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14,
+                    }}>
+                      <Icon size={20} color="#fff" />
+                    </div>
+                    <h3 style={{
+                      margin:'0 0 8px', fontSize:16, fontWeight:700, color:'#4A5568',
+                      fontFamily:"'Lora',serif",
+                    }}>{title}</h3>
+                    <p style={{
+                      margin:0, fontSize:13.5, color:'#718096', lineHeight:1.65,
+                      fontFamily:"'DM Sans',sans-serif",
+                    }}>{body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Gradient divider */}
+          <div style={{ maxWidth:1120, margin:'0 auto', padding:'0 24px' }}>
+            <div style={{ height:1, background:'linear-gradient(to right, transparent, #B8D4BA, transparent)' }} />
+          </div>
+
+          {/* ── PRODUCT SECTIONS ── */}
+          {SECTIONS.map(section => (
+            <SectionBlock key={section.id} section={section} />
+          ))}
+
+          {/* ── FOOTER ── */}
+          <footer style={{
+            background:'#4A5568', color:'rgba(255,255,255,0.6)',
+            padding:'40px 24px', textAlign:'center', marginTop:32,
+          }}>
+            <div style={{ maxWidth:600, margin:'0 auto' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:10, marginBottom:16 }}>
+                <div style={{
+                  width:32, height:32, background:'#7A9E7E',
+                  borderRadius:10, display:'flex', alignItems:'center', justifyContent:'center',
+                }}>
+                  <BrainIcon size={16} color="#fff" />
+                </div>
+                <span style={{ fontFamily:"'Lora',serif", fontWeight:700, fontSize:16, color:'#fff' }}>
+                  FocusKit
+                </span>
+              </div>
+              <p style={{ fontSize:13, lineHeight:1.7, margin:'0 0 12px', fontFamily:"'DM Sans',sans-serif" }}>
+                As an Amazon Associate, FocusKit earns from qualifying purchases.
+                All products are independently selected with ADHD users in mind.
+              </p>
+              <p style={{ fontSize:12, margin:0, fontFamily:"'DM Sans',sans-serif" }}>
+                © 2025 FocusKit. Made with care for neurodivergent minds.
+              </p>
+            </div>
+          </footer>
+
+        </div>
+      );
+    }
+
+    /* ── Mount ── */
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
